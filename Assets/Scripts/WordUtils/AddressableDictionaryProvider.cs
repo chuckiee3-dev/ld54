@@ -4,7 +4,6 @@ using System.Linq;
 using Cysharp.Threading.Tasks;
 using Unity.VisualScripting;
 using UnityEngine;
-using UnityEngine.AddressableAssets;
 using Random = UnityEngine.Random;
 
 public class AddressableDictionaryProvider : IDictionaryProvider
@@ -83,9 +82,8 @@ public class AddressableDictionaryProvider : IDictionaryProvider
     private async UniTask InitializeAsync()
     {
         List<char> allStartingCharacters = new List<char>();
-        var opHandle = Addressables.LoadAssetAsync<TextAsset>("words");
-        await opHandle.Task;
-        var arrayString = opHandle.Task.Result.text.Split('\n');
+        TextAsset opHandle = Resources.Load<TextAsset>("En");
+        var arrayString = opHandle.text.Split('\n');
         Debug.Log(arrayString.Length);
         foreach (var word in arrayString)
         {
@@ -135,7 +133,6 @@ public class AddressableDictionaryProvider : IDictionaryProvider
                 words[lengthKey][charKey].Sort();
             }
         }
-        Addressables.Release(opHandle);
         alphabet = allStartingCharacters.ToArray();
         OnDictionaryReady?.Invoke();
     }
