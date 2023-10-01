@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
+using UnityEngine.Rendering.Universal;
 using VContainer;
 using VContainer.Unity;
 
@@ -9,14 +11,66 @@ public class Tower : MonoBehaviour
     private List<Worker> workers;
     [SerializeField]private Worker workerPrefab;
     [SerializeField] public Transform entrance;
+    [SerializeField] public TextMeshProUGUI spaceTmp;
+    private string spacePrefix = "Space: ";
     private int spaceCount = 0;
     private int maxSpaceCount = 3;
     private IObjectResolver objectResolver;
+    
+    public string word;
+    public WordView wordView;
+    public IWordEvents wordEvents;
+    public IBaseEvents baseEvents;
+    public IUpgradeProvider upgradeProvider;
+    public IInputEvents inputEvents;
+    public WordTracker wordTracker;
+    public Sprite emptySprite;
+    public Sprite occupiedSprite;
+    public Light2D light2d;
+    public SpriteRenderer sr;
+    private float defaultIntensity;
+    [Inject]
+    public void Construct(IWordEvents wordEvents, IBaseEvents baseEvents,WordTracker wordTracker, IUpgradeProvider upgradeProvider,IObjectResolver objectResolver, IInputEvents inputEvents)
+    {
+        wordEvents.OnWordProgressUpdated += UpdateWordView;
+        wordView.OnWordCompleted += WordCompleted;
+        baseEvents.OnSpaceRequested += TryGrantSpace;
+        this.wordEvents = wordEvents;
+        this.baseEvents = baseEvents;
+        this.upgradeProvider = upgradeProvider;
+        this.wordTracker = wordTracker;
+        this.inputEvents = inputEvents;
+        this.objectResolver = objectResolver;
+    }
+
+    private void TryGrantSpace(int amount)
+    {
+        Debug.Log("TryGrantSpace");
+        if (amount <= spaceCount)
+        {
+            Debug.Log("amount <= spaceCount");
+            spaceCount -= amount;
+            spaceCount = Math.Clamp(spaceCount, 0, maxSpaceCount);
+            spaceTmp.text = spacePrefix + spaceCount;
+            baseEvents.OnSpaceGranted?.Invoke(amount);
+        }
+        else
+        {
+            Debug.Log("non");
+            baseEvents.OnSpaceRejected?.Invoke(spaceCount, amount);
+        }
+    }
+
     private void Start()
     {
-        Initialize("??{{}}");
+        sr.sprite = emptySprite;
+        defaultIntensity = light2d.intensity;
+        light2d.intensity = 0;
+        Initialize("||??{{}}");
         wordView.Hide();
+        spaceTmp.text = spacePrefix + spaceCount;
     }
+        
 
     public bool HasWorker()
     {
@@ -30,6 +84,10 @@ public class Tower : MonoBehaviour
             {
                 worker.GoMine();
                 workers.Remove(worker);
+                
+                sr.sprite = emptySprite;
+                light2d.intensity = 0;
+
                 break;
             }
         }
@@ -39,28 +97,21 @@ public class Tower : MonoBehaviour
     public void WorkerArrived(Worker worker)
     {
         workers.Add(worker);
-        spaceCount++;            
-        Debug.Log("Plus one space!");
-        spaceCount = Math.Clamp(spaceCount, 0, maxSpaceCount);
+        EarnSpace(worker.spacePerMine);
+        sr.sprite = occupiedSprite;
+        light2d.intensity = defaultIntensity;
+
     }
-    
-    public string word;
-    public WordView wordView;
-    public IWordEvents wordEvents;
-    public IBaseEvents baseEvents;
-    public IUpgradeProvider upgradeProvider;
-    public WordTracker wordTracker;
-    [Inject]
-    public void Construct(IWordEvents wordEvents, IBaseEvents baseEvents,WordTracker wordTracker, IUpgradeProvider upgradeProvider,IObjectResolver objectResolver)
+
+    public void EarnSpace(int earnedAmount)
     {
-        wordEvents.OnWordProgressUpdated += UpdateWordView;
-        wordView.OnWordCompleted += WordCompleted;
-        this.wordEvents = wordEvents;
-        this.baseEvents = baseEvents;
-        this.upgradeProvider = upgradeProvider;
-        this.wordTracker = wordTracker;
-        this.objectResolver = objectResolver;
+        spaceCount+=earnedAmount;
+        spaceCount = Math.Clamp(spaceCount, 0, maxSpaceCount);
+        spaceTmp.text = spacePrefix + spaceCount;
+        baseEvents.OnSpaceEarned?.Invoke(1);
     }
+
+
     public  void Initialize(string word)
     {
         this.word = word;
@@ -68,6 +119,9 @@ public class Tower : MonoBehaviour
         wordView.UpdateStatus(word, new List<bool>());
         wordEvents.OnWordSpawned?.Invoke(word);
         workers = new List<Worker>();
+        sr.sprite = occupiedSprite;
+        light2d.intensity = defaultIntensity;
+
         workers.Add(objectResolver.Instantiate(workerPrefab, transform.position,Quaternion.identity));
         baseEvents.OnMineWorkerRequested += SendWorker;
     }
@@ -88,5 +142,6 @@ public class Tower : MonoBehaviour
     {
         wordEvents.OnWordProgressUpdated -= UpdateWordView;
         baseEvents.OnMineWorkerRequested -= SendWorker;
+        baseEvents.OnSpaceRequested -= TryGrantSpace;
     }
 }

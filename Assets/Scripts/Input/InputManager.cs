@@ -21,9 +21,15 @@ public class InputManager : IInitializable, IDisposable
     public void Initialize()
     {
         inputEvents.OnCharPressed += ProcessChar;
+        inputEvents.OnSpacePressed += ProcessSpace;
         inputEvents.OnBackspaceUsed += ProcessBackspace;
         wordEvents.OnWordSpawned += AddWordToList;
         wordEvents.OnWordDestroyed += RemoveFromList;
+    }
+
+    private void ProcessSpace()
+    {
+        ProcessChar('·');
     }
 
     private void RemoveFromList(string word)
@@ -44,6 +50,7 @@ public class InputManager : IInitializable, IDisposable
         {
             inputEvents.OnCharPressed -= ProcessChar;
             inputEvents.OnBackspaceUsed -= ProcessBackspace;
+            inputEvents.OnSpacePressed -= ProcessSpace;
         }
 
         if (wordEvents != null)
@@ -70,6 +77,14 @@ public class InputManager : IInitializable, IDisposable
                     focusedWord = word;
                     writtenStr = "";
                     correctness.Add(true);
+                    if (correctness[correctness.Count - 1])
+                    {
+                        inputEvents.OnCorrectCharacter?.Invoke();
+                    }
+                    else
+                    {
+                        inputEvents.OnWrongCharacter?.Invoke();
+                    }
                     writtenStr += inputChar;
                     wordEvents.OnWordProgressUpdated?.Invoke(focusedWord, correctness);
 
@@ -86,6 +101,14 @@ public class InputManager : IInitializable, IDisposable
                 writtenStr += inputChar;
                 int index = writtenStr.Length - 1;
                 correctness.Add(writtenStr[index] == focusedWord[index]);
+                if (correctness[correctness.Count - 1])
+                {
+                    inputEvents.OnCorrectCharacter?.Invoke();
+                }
+                else
+                {
+                    inputEvents.OnWrongCharacter?.Invoke();
+                }
                 wordEvents.OnWordProgressUpdated?.Invoke(focusedWord, correctness);
             }
         }
@@ -106,8 +129,14 @@ public class InputManager : IInitializable, IDisposable
         {
             return;
         }
+        inputEvents.OnDeleteCharacter?.Invoke();
         //b
         //band
+        char lastChar = writtenStr[^1];
+        if (lastChar == '·')
+        {
+            tower.EarnSpace(1);
+        }
         writtenStr = writtenStr.Substring(0, writtenStr.Length - 1);
         if (correctness.Count > 0)
         {

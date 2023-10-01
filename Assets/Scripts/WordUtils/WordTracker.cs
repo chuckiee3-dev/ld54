@@ -8,6 +8,7 @@ using Random = UnityEngine.Random;
 public class WordTracker: IInitializable, IDisposable
 {
     private readonly List<char> startCharactersOnScreen;
+    private List<char> allCharacters;
     private List<char> unusedCharacters;
     private readonly IDictionaryProvider dictionaryProvider;
     private readonly IWordEvents wordEvents;
@@ -23,6 +24,7 @@ public class WordTracker: IInitializable, IDisposable
     private void SetupLetters()
     {
         unusedCharacters = dictionaryProvider.GetAlphabet().ToList();
+        allCharacters = dictionaryProvider.GetAlphabet().ToList();;
     }
 
     public void Initialize()
@@ -80,4 +82,29 @@ public class WordTracker: IInitializable, IDisposable
         Debug.Log("All characters are used!");
         return startCharactersOnScreen[0];
     }
+    public char GetRandomChar()
+    { 
+        return allCharacters[Random.Range(0, allCharacters.Count)];
+    }
+
+    public string GetRandomUnusedWord(int length)
+    {
+        return dictionaryProvider.GetWord(length, GetUnusedChar());
+    }
+    public string GetRandomUnusedWordWithSpaces(int length, int spaceCount)
+    {
+        if (spaceCount == 0)
+        {
+            return GetRandomUnusedWord(length);
+        }
+        string text = dictionaryProvider.GetWord(length, GetUnusedChar());
+        for (int i = 0; i < spaceCount; i++)
+        {
+            text += "·";
+            text += dictionaryProvider.GetWord(length, GetRandomChar());
+        }
+
+        return text;
+    }
+    
 }
